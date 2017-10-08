@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
-# Version 0.3.2 *REQUIREMENTS BELOW*
+# Version 0.3.3 *See README.md for requirements*
 #
-# 1. Working Homebrew installed.
-# 2. Homebrew: brew tap caskroom/cask
-# 3. Homebrew: brew install ffmpeg
-# 4. Homebrew: brew install terminal-notifier
-# 5. Homebrew: brew install tag
-# 6. Homebrew: brew install detox
-
-# This script will attempt to convert mkv files with one or more aac tracks to ac3 and will
-# tag those converted files with a finder label of blue.
-
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # directory to parse files recursively.
 WORKINGDIRECTORY="/Volumes/Drobo/Media Center/Unsorted-TV Shows/"
