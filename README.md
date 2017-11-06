@@ -5,6 +5,8 @@ in sub-directories as well. If found, it will use ffmpeg to determine if it has 
 audio track and attempt to re-encode the file's existing audio track to ac3. The file will
 also be converted to mkv if it was an m4v.
 
+Converted files are tagged with a blue Finder label so they can be found easily.
+
 Geared towards OS X, but could easily be adapted for most *nix distros.
 
 Until 1.0, a backup of the original file will be maintained while testing for bugs.
@@ -17,6 +19,7 @@ Until 1.0, a backup of the original file will be maintained while testing for bu
 4. Homebrew: brew install terminal-notifier
 5. Homebrew: brew install tag
 6. Homebrew: brew install detox
+7. Homebrew: brew install trash
 
 *Current Limitations*
 
