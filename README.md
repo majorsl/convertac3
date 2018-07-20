@@ -9,7 +9,8 @@ Converted files are tagged with a blue Finder label so they can be found easily.
 
 Geared towards OS X, but could easily be adapted for most *nix distros.
 
-Until 1.0, a backup of the original file will be maintained while testing for bugs.
+The original file will be moved to the trash, if something goes wrong you can look there
+to reclaim the original.
 
 *Requirements*
 

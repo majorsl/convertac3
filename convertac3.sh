@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 0.5 *See README.md for requirements*
+# Version 0.6 *See README.md for requirements*
 #
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # directory to parse files recursively.
@@ -39,7 +39,7 @@ if [ "$acodec" != "ac3" ]; then
 	"$TERMINALNOTIFIER"terminal-notifier -title 'Convert AC3' -message "Processing $file" -activate -timeout 10
 	"$FFMPEG"ffmpeg -i "$file" -vcodec copy -scodec copy -acodec ac3 -ac 6 -ab 448k "$newfile"-AC3-.mkv
 	"$TAG"tag -a Blue "$newfile"-AC3-.mkv
-	"$TRASH"trash -a "$file"
+	"$TRASH"trash "$file"
 fi
 done
 
