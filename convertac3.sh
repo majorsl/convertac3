@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Version 0.6 *See README.md for requirements*
+# Version 0.7 *See README.md for requirements*
 #
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # directory to parse files recursively.
-WORKINGDIRECTORY="/Volumes/Drobo/Media Center/Unsorted-TV Shows/"
+WORKINGDIRECTORY="/Users/majorsl/Library/Containers/nz.co.pixeleyes.AutoMounter/Data/Mounts/synology/SMB/Media Center/Unsorted-TV Shows/"
 
 # path to terminal-notifier
 TERMINALNOTIFIER="/usr/local/bin/"
@@ -17,8 +17,8 @@ DETOX="/usr/local/opt/detox/bin/"
 #path to tag
 TAG="/usr/local/bin/"
 
-#path to trash (trash is a binary that trashes files using the OS X API)
-TRASH="/usr/local/bin/"
+#path to trash converted files
+TRASH="/Users/majorsl/.Trash"
 
 # -----------------------------------------------------------------------------------------------
 IFS=$'\n'
@@ -34,12 +34,12 @@ do
 echo "$file"
 acodec=$("$FFMPEG"ffprobe -v error -select_streams a -show_entries stream=codec_name -of default=nokey=1:noprint_wrappers=1 "$file")
 echo "$acodec"
-if [ "$acodec" != "ac3" ]; then
+if [[ "$acodec" != *"ac3" ]]; then
 	newfile=${file%.*}
 	"$TERMINALNOTIFIER"terminal-notifier -title 'Convert AC3' -message "Processing $file" -activate -timeout 10
 	"$FFMPEG"ffmpeg -i "$file" -vcodec copy -scodec copy -acodec ac3 -ac 6 -ab 448k "$newfile"-AC3-.mkv
 	"$TAG"tag -a Blue "$newfile"-AC3-.mkv
-	"$TRASH"trash "$file"
+	mv "$file" "$TRASH"
 fi
 done
 
