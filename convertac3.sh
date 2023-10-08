@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Version 0.8 *See README.md for requirements*
+# Version 0.9 *See README.md for requirements*
 #
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # directory to parse files recursively.
-WORKINGDIRECTORY="/Users/majorsl/Library/Containers/nz.co.pixeleyes.AutoMounter/Data/Mounts/synology/SMB/Media Center/Unsorted-TV Shows/"
+WORKINGDIRECTORY="/Volumes/EG6/Downloads/Sonarr/"
 
 # path to terminal-notifier
 TERMINALNOTIFIER="/usr/local/bin/"
@@ -18,7 +18,7 @@ DETOX="/usr/local/opt/detox/bin/"
 TAG="/usr/local/bin/"
 
 #path to trash converted files
-TRASH="/Users/majorsl/.Trash"
+TRASH="/Volumes/EG6/.Trashes/501"
 
 # -----------------------------------------------------------------------------------------------
 IFS=$'\n'
@@ -44,7 +44,7 @@ if [[ "$acodec" != *"ac3" ]]; then
 	"$TERMINALNOTIFIER"terminal-notifier -title 'Convert AC3' -message "Processing $file" -activate -timeout 10
 	"$FFMPEG"ffmpeg -i "$file" -vcodec copy -scodec copy -acodec ac3 -ac "$achannels" -ab 448k "$newfile"-AC3-.mkv
 	"$TAG"tag -a Blue "$newfile"-AC3-.mkv
-	mv "$file" "$TRASH"
+	mv "$file" $TRASH
 fi
 done
 
