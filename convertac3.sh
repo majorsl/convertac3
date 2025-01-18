@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Version 1.6 *See README.md for requirements*
+# Version 1.6.2 *See README.md for requirements*
 
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
-# Default directory to parse files recursively.
-DEFAULT_WORKINGDIRECTORY="/media/majorsl/e9ef2c72-9134-4418-86dc-10742b12d0ed/Downloads/Sonarr/"
 # Path to ffmpeg
 FFMPEG="/usr/bin/"
 # Path to detox
@@ -15,7 +13,7 @@ IFS=$'\n'
 if [ -n "$1" ]; then
   WORKINGDIRECTORY="$1"
 else
-  WORKINGDIRECTORY="$DEFAULT_WORKINGDIRECTORY"
+  echo "Please call the script with a trailing directory part to process."
 fi
 
 if [ ! -d "$WORKINGDIRECTORY" ]; then
@@ -56,7 +54,7 @@ do
     fi
     
     # Check if the codec is AC3
-    if [[ "$acodec" == "ac3" ]]; then
+    if [[ "$acodec" == "ac3" || "$acodec" == "eac3" ]]; then
       has_ac3=1
     fi
 
@@ -80,7 +78,7 @@ do
     # Log the processing
     echo "$(date): Processed $file" >> "$LOG_FILE"
   else
-    echo "Skipping $file as it already contains AC3 audio."
+    echo "Skipping $file as it already contains AC3/EAC3 audio."
   fi
 done
 

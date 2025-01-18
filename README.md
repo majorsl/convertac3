@@ -7,6 +7,8 @@ ac3.
 
 The original file will be removed after the new files is successfully processed.
 
+Call the script with a trailing directory path and it will process the items in that location.
+
 *Requirements*
 
 1. ffmpeg
