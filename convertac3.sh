@@ -22,7 +22,7 @@ if [ ! -d "$WORKINGDIRECTORY" ]; then
 fi
 
 # Detoxify filenames
-"$DETOX"detox -r -v "$WORKINGDIRECTORY"
+find "$WORKINGDIRECTORY" -mindepth 1 -exec "$DETOX"detox -r -v {} \;
 
 # Process .mkv files
 for file in $(find "$WORKINGDIRECTORY" -type f -name "*.mkv")
