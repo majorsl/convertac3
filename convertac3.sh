@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 1.6.2 *See README.md for requirements*
+# Version 1.6.3 *See README.md for requirements*
 
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # Path to ffmpeg
@@ -29,12 +29,19 @@ for file in $(find "$WORKINGDIRECTORY" -type f -name "*.mkv")
 do
   echo "Processing $file"
   
-  # Get all audio stream info (codec_name and channels)
+  # Get all audio and subtitle stream info
   file_info=$("$FFMPEG"ffprobe -v error -select_streams a -show_entries stream=codec_name,channels -of default=nokey=1:noprint_wrappers=1 "$file")
   
-  # Start constructing the map_str for video and subtitle streams
-  map_str=()
-  map_str+=("-map" "0:v" "-map" "0:s")  # Always map video and subtitle streams
+  # Check if there are subtitle streams
+  subtitle_info=$("$FFMPEG"ffprobe -v error -select_streams s -show_entries stream=index -of default=nokey=1:noprint_wrappers=1 "$file")
+  
+  # Start constructing the map_str for video streams
+  map_str=("-map" "0:v")  # Always map video stream
+
+  # Add subtitle streams only if they exist
+  if [ -n "$subtitle_info" ]; then
+    map_str+=("-map" "0:s")  # Map subtitle stream if it exists
+  fi
 
   # Initialize a flag for whether we found any AC3 streams
   has_ac3=0
