@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 1.6.3 *See README.md for requirements*
+# Version 1.6.4 *See README.md for requirements*
 
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # Path to ffmpeg
@@ -14,6 +14,7 @@ if [ -n "$1" ]; then
   WORKINGDIRECTORY="$1"
 else
   echo "Please call the script with a trailing directory part to process."
+  exit 1
 fi
 
 if [ ! -d "$WORKINGDIRECTORY" ]; then
@@ -27,6 +28,15 @@ find "$WORKINGDIRECTORY" -mindepth 1 -exec "$DETOX"detox -r -v {} \;
 # Process .mkv files
 for file in $(find "$WORKINGDIRECTORY" -type f -name "*.mkv")
 do
+  # Extract base name without extension to compare
+  base_name="${file%.*}"
+
+  # Skip the file if it is already a temporary file with -AC3- in its name or its corresponding original file is being processed
+  if [[ "$file" == "$base_name-AC3-.mkv" || "$file" == "$base_name.mkv" ]]; then
+    echo "Skipping $file as it is a temporary or original file being processed."
+    continue
+  fi
+
   echo "Processing $file"
   
   # Get all audio and subtitle stream info
@@ -60,7 +70,7 @@ do
       achannels="6"
     fi
     
-    # Check if the codec is AC3
+    # Check if the codec is AC3 or EAC3
     if [[ "$acodec" == "ac3" || "$acodec" == "eac3" ]]; then
       has_ac3=1
     fi
@@ -72,17 +82,17 @@ do
 
   # Only convert if no AC3 streams are found
   if [ "$has_ac3" -eq 0 ]; then
-    # Prepare new file name for output
-    newfile="${file%.*}"
+    # Prepare new file name for output with -AC3- suffix
+    newfile="${base_name}-AC3-.mkv"
     echo "Converting $file to AC3..."
 
     # Perform the conversion with ffmpeg
-    "$FFMPEG"ffmpeg -i "$file" "${map_str[@]}" -vcodec copy -scodec copy -acodec ac3 -ac "$achannels" -ab 448k "$newfile"-AC3-.mkv
+    "$FFMPEG"ffmpeg -i "$file" "${map_str[@]}" -vcodec copy -scodec copy -acodec ac3 -ac "$achannels" -ab 448k "$newfile"
 
     # Move the original file to trash
     rm "$file"
 
-    # Log the processing
+    # Log the processing (if required)
     echo "$(date): Processed $file" >> "$LOG_FILE"
   else
     echo "Skipping $file as it already contains AC3/EAC3 audio."
