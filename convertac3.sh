@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 1.6.4 *See README.md for requirements*
+# Version 1.6.5 *See README.md for requirements*
 
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # Path to ffmpeg
@@ -30,10 +30,12 @@ for file in $(find "$WORKINGDIRECTORY" -type f -name "*.mkv")
 do
   # Extract base name without extension to compare
   base_name="${file%.*}"
-
-  # Skip the file if it is already a temporary file with -AC3- in its name or its corresponding original file is being processed
-  if [[ "$file" == "$base_name-AC3-.mkv" || "$file" == "$base_name.mkv" ]]; then
-    echo "Skipping $file as it is a temporary or original file being processed."
+  # Construct the temporary file and original file paths
+  temp_file="${base_name}.-AC3-.${file##*.}"  # e.g., file.tmp.mkv
+  original_file="${base_name}.${file##*.}"  # e.g., file.mkv or file.mp4
+  # Skip both the temporary file and the original file if the temporary file exists
+  if [[ -f "$temp_file" ]]; then
+    echo "Skipping $file as the temporary file exists (original file being processed)."
     continue
   fi
 
@@ -56,12 +58,19 @@ do
   # Initialize a flag for whether we found any AC3 streams
   has_ac3=0
   
-  # Loop through each audio track and add it to map_str
-  track_num=0
-  while read -r line; do
-    acodec=$(echo "$line" | cut -d' ' -f1)
-    achannels=$(echo "$line" | cut -d' ' -f2)
-    
+# Loop through each audio track and add it to map_str
+track_num=0
+while read -r line; do
+  acodec=$(echo "$line" | cut -d' ' -f1)
+  achannels=$(echo "$line" | cut -d' ' -f2)
+
+  # Check if the codec is AC3 or EAC3
+  if [[ "$acodec" == "ac3" || "$acodec" == "eac3" ]]; then
+    has_ac3=1
+  fi
+
+  # Only check achannels if it's numeric
+  if [[ "$achannels" =~ ^[0-9]+$ ]]; then
     # Add the current audio track to the map, ensuring it exists
     map_str+=("-map" "0:a:$track_num?")  # Add '?' to ignore missing streams
 
@@ -69,16 +78,11 @@ do
     if [ "$achannels" -gt "6" ]; then
       achannels="6"
     fi
-    
-    # Check if the codec is AC3 or EAC3
-    if [[ "$acodec" == "ac3" || "$acodec" == "eac3" ]]; then
-      has_ac3=1
-    fi
+  fi
 
-    # Increment track number for the next loop
-    ((track_num++))
-
-  done <<< "$file_info"
+  # Increment track number for the next loop
+  ((track_num++))
+done <<< "$file_info"
 
   # Only convert if no AC3 streams are found
   if [ "$has_ac3" -eq 0 ]; then
@@ -87,13 +91,11 @@ do
     echo "Converting $file to AC3..."
 
     # Perform the conversion with ffmpeg
-    "$FFMPEG"ffmpeg -i "$file" "${map_str[@]}" -vcodec copy -scodec copy -acodec ac3 -ac "$achannels" -ab 448k "$newfile"
+    "$FFMPEG"ffmpeg -nostdin -i "$file" "${map_str[@]}" -vcodec copy -scodec copy -acodec ac3 -ac "$achannels" -ab 448k "$newfile"
 
     # Move the original file to trash
     rm "$file"
 
-    # Log the processing (if required)
-    echo "$(date): Processed $file" >> "$LOG_FILE"
   else
     echo "Skipping $file as it already contains AC3/EAC3 audio."
   fi
