@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 1.6.8 *See README.md for requirements*
+# Version 1.6.9 *See README.md for requirements*
 
 # SET YOUR OPTIONS HERE -------------------------------------------------------------------------
 # Path to ffmpeg
@@ -32,22 +32,26 @@ do
   base_name="${file%.*}"
 
   # Pause if there are any temp files already processing
-  if [[ "$file" == "$base_name-AC3-.mkv" ]]; then
-    echo "Waiting for temp files to finish processing... ($file)"
-    # Set the timeout limit (1 hour = 3600 seconds)
-    timeout=3600
-    elapsed_time=0
-    # Wait until the temp file with -AC3- is no longer present or until timeout occurs
-    while [ -f "$base_name-AC3-.mkv" ]; do
-      if [ "$elapsed_time" -ge "$timeout" ]; then
-        echo "Timeout reached. Temp file still present after 1 hour. Exiting."
-        exit 1
-      fi
-      sleep 5  # Wait for 5 seconds before checking again
-      ((elapsed_time+=5))  # Increment elapsed time by 5 seconds
+  temp_file_found=1
+  while [ "$temp_file_found" -eq 1 ]; do
+    temp_file_found=0  # Assume no temp files initially
+    for tmp_file in $(find "$WORKINGDIRECTORY" -type f -name "${base_name}-AC3-.mkv"); do
+      echo "Waiting for temp files to finish processing... ($tmp_file)"
+      # Set the timeout limit (1 hour = 3600 seconds)
+      timeout=3600
+      elapsed_time=0
+      # Wait until the temp file with -AC3- is no longer present or until timeout occurs
+      while [ -f "$tmp_file" ]; do
+        if [ "$elapsed_time" -ge "$timeout" ]; then
+          echo "Timeout reached. Temp file still present after 1 hour. Exiting."
+          exit 1
+        fi
+        sleep 5  # Wait for 5 seconds before checking again
+        ((elapsed_time+=5))  # Increment elapsed time by 5 seconds
+      done
+      temp_file_found=1  # A temp file was found, so restart the loop
     done
-    echo "Temp file finished processing, continuing..."
-  fi
+  done
 
   echo "Processing $file"
   
