@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Version 1.9.1 - Fixed multi-track conversion issue, added full stream mapping
+# Version 1.9.2 - Added -nostdin to suppress ffmpeg runtime prompts
 
 FFMPEG="/usr/bin/"
 LOCKFILE="/tmp/ac3_convert.lock"
 IFS=$'\n'
 
+# Lock to avoid concurrent runs
 exec 200>"$LOCKFILE"
 flock -w 600 200 || {
   echo "⏳ Timeout waiting for lock (10 minutes). Another instance may be stuck. Exiting."
   exit 1
 }
 
+# Validate input path
 if [ -n "$1" ]; then
   WORKINGDIRECTORY="$1"
 else
@@ -23,14 +25,15 @@ if [ ! -d "$WORKINGDIRECTORY" ]; then
   exit 1
 fi
 
+# Find and process .mkv files
 find "$WORKINGDIRECTORY" -type f -name "*.mkv" | while read -r file; do
   base_name="${file%.*}"
   echo "🎬 Processing \"$file\""
 
+  # Gather audio stream info
   file_info=$("${FFMPEG}ffprobe" -v error -select_streams a \
               -show_entries stream=codec_name,channels \
               -of default=nokey=1:noprint_wrappers=1 "$file")
-
   readarray -t lines <<< "$file_info"
 
   map_str=("-map" "0")  # Include all streams
@@ -67,7 +70,7 @@ find "$WORKINGDIRECTORY" -type f -name "*.mkv" | while read -r file; do
     newfile="${base_name}-AC3.mkv"
     echo "🔄 Converting non-AC3 audio tracks..."
 
-    "${FFMPEG}ffmpeg" -i "$file" "${map_str[@]}" \
+    "${FFMPEG}ffmpeg" -nostdin -i "$file" "${map_str[@]}" \
       -c:v copy -c:s copy "${codec_args[@]}" "$newfile"
 
     if [ $? -eq 0 ]; then
