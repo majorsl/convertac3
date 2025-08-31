@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Version 2.4 - Fixed summary counters with process substitution
-# Auto downmix >6ch audio to 5.1 using -ac 6, safe replacement, accurate summary
+# Version 2.6 - All audio to E-AC3, dynamic bitrate based on source, preserves channels, safe replacement, summary
 
 FFMPEG="/usr/bin"
-LOCKFILE="/tmp/ac3_convert.lock"
+LOCKFILE="/tmp/eac3_convert.lock"
 LANG_OVERRIDE="eng"
-EAC3_51_BITRATE="640k"
-AC3_BITRATE="448k"
+MAX_EAC3_BITRATE=960  # maximum allowed kbps for E-AC3
 
 # Acquire lock
 exec 200>"$LOCKFILE"
@@ -38,7 +36,7 @@ while IFS= read -r -d '' file; do
 
   # Probe audio streams
   streams_json=$("$FFMPEG/ffprobe" -v error -select_streams a \
-                   -show_entries stream=index,codec_name,channels:stream_tags=language \
+                   -show_entries stream=index,codec_name,channels:stream_tags=language,bit_rate \
                    -of json "$file") || { echo "❌ ffprobe failed on \"$file\""; ((failed++)); continue; }
 
   # Parse via jq
@@ -46,6 +44,7 @@ while IFS= read -r -d '' file; do
   mapfile -t codecs    < <(echo "$streams_json" | jq -r '.streams[].codec_name')
   mapfile -t channels  < <(echo "$streams_json" | jq -r '.streams[].channels // 2')
   mapfile -t languages < <(echo "$streams_json" | jq -r '.streams[].tags.language // "und"')
+  mapfile -t bitrates  < <(echo "$streams_json" | jq -r '.streams[].bit_rate // 0')
 
   map_str=("-map" "0")
   codec_args=()
@@ -56,26 +55,51 @@ while IFS= read -r -d '' file; do
     codec="${codecs[$track_num]}"
     ch="${channels[$track_num]}"
     lang="${languages[$track_num]}"
+    src_bitrate="${bitrates[$track_num]}"
 
-    if [[ "$codec" == "ac3" || "$codec" == "eac3" ]]; then
-      codec_args+=("-c:a:$track_num" "copy")
+    # Determine target bitrate dynamically
+    if [ "$src_bitrate" -gt 0 ]; then
+        src_bitrate_k=$((src_bitrate / 1000))
     else
-      if [ "$ch" -gt 6 ]; then
-        echo "🎧 Track $track_num has $ch channels — downmixing to 5.1 (FFmpeg -ac 6)."
-        codec_args+=("-c:a:$track_num" "eac3" "-b:a:$track_num" "$EAC3_51_BITRATE" "-ac:$track_num" "6")
+        src_bitrate_k=192  # default if not reported
+    fi
+
+    if [ "$ch" -eq 1 ]; then
+        target_bitrate=$src_bitrate_k
+    elif [ "$ch" -le 6 ]; then
+        target_bitrate=$((src_bitrate_k * 3))  # 5.1
+    elif [ "$ch" -eq 8 ]; then
+        target_bitrate=$((src_bitrate_k * 4))  # 7.1
+    else
+        target_bitrate=$((src_bitrate_k * ch / 2))  # generic scaling
+    fi
+
+    [ "$target_bitrate" -gt "$MAX_EAC3_BITRATE" ] && target_bitrate=$MAX_EAC3_BITRATE
+    target_bitrate="${target_bitrate}k"
+
+    if [[ "$codec" == "eac3" ]]; then
+        codec_args+=("-c:a:$track_num" "copy")
+    else
+        echo "🎧 Track $track_num has $ch channels — converting to E-AC3 at ${target_bitrate}."
+        codec_args+=(
+            "-c:a:$track_num" "eac3"
+            "-b:a:$track_num" "$target_bitrate"
+            "-ac:$track_num" "$ch"
+        )
+        # Explicitly set layout for 5.1 or 7.1
+        if [ "$ch" -eq 8 ]; then
+            codec_args+=("-channel_layout:$track_num" "7.1")
+        elif [ "$ch" -eq 6 ]; then
+            codec_args+=("-channel_layout:$track_num" "5.1")
+        fi
         encoded_any=1
-      else
-        echo "🎧 Track $track_num has $ch channels — converting to AC3."
-        codec_args+=("-c:a:$track_num" "ac3" "-ac:$track_num" "$ch" "-b:a:$track_num" "$AC3_BITRATE")
-        encoded_any=1
-      fi
     fi
 
     # Language fix
     if [[ "$lang" == "und" ]]; then
-      echo "🌐 Track $track_num language is undefined — setting to $LANG_OVERRIDE."
-      codec_args+=("-metadata:s:a:$track_num" "language=$LANG_OVERRIDE")
-      metadata_changed=1
+        echo "🌐 Track $track_num language is undefined — setting to $LANG_OVERRIDE."
+        codec_args+=("-metadata:s:a:$track_num" "language=$LANG_OVERRIDE")
+        metadata_changed=1
     fi
   done
 
