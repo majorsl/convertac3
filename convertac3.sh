@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 2.6 - All audio to E-AC3, dynamic bitrate based on source, preserves channels, safe replacement, summary
+# Version 2.6.1 - Fix 2.0 downmix bug when there are multiple tracks.
 
 FFMPEG="/usr/bin"
 LOCKFILE="/tmp/eac3_convert.lock"
@@ -84,7 +84,6 @@ while IFS= read -r -d '' file; do
         codec_args+=(
             "-c:a:$track_num" "eac3"
             "-b:a:$track_num" "$target_bitrate"
-            "-ac:$track_num" "$ch"
         )
         # Explicitly set layout for 5.1 or 7.1
         if [ "$ch" -eq 8 ]; then
