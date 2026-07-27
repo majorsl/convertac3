@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Version 2.6.1 - Fix 2.0 downmix bug when there are multiple tracks.
+# Version 2.7.0 - Properly names/renames tracks.
 
 FFMPEG="/usr/bin"
 LOCKFILE="/tmp/eac3_convert.lock"
@@ -36,7 +36,7 @@ while IFS= read -r -d '' file; do
 
   # Probe audio streams
   streams_json=$("$FFMPEG/ffprobe" -v error -select_streams a \
-                   -show_entries stream=index,codec_name,channels:stream_tags=language,bit_rate \
+                   -show_entries stream=index,codec_name,channels:stream_tags=language,title,bit_rate \
                    -of json "$file") || { echo "❌ ffprobe failed on \"$file\""; ((failed++)); continue; }
 
   # Parse via jq
@@ -44,6 +44,7 @@ while IFS= read -r -d '' file; do
   mapfile -t codecs    < <(echo "$streams_json" | jq -r '.streams[].codec_name')
   mapfile -t channels  < <(echo "$streams_json" | jq -r '.streams[].channels // 2')
   mapfile -t languages < <(echo "$streams_json" | jq -r '.streams[].tags.language // "und"')
+  mapfile -t titles    < <(echo "$streams_json" | jq -r '.streams[].tags.title // ""')
   mapfile -t bitrates  < <(echo "$streams_json" | jq -r '.streams[].bit_rate // 0')
 
   map_str=("-map" "0")
@@ -55,6 +56,7 @@ while IFS= read -r -d '' file; do
     codec="${codecs[$track_num]}"
     ch="${channels[$track_num]}"
     lang="${languages[$track_num]}"
+    title="${titles[$track_num]}"
     src_bitrate="${bitrates[$track_num]}"
 
     # Determine target bitrate dynamically
@@ -77,13 +79,40 @@ while IFS= read -r -d '' file; do
     [ "$target_bitrate" -gt "$MAX_EAC3_BITRATE" ] && target_bitrate=$MAX_EAC3_BITRATE
     target_bitrate="${target_bitrate}k"
 
+    # Generate appropriate track title
+    if [[ "$title" =~ [Cc]ommentary ]]; then
+        case "$ch" in
+            1) new_title="Commentary Dolby Digital+ Mono" ;;
+            2) new_title="Commentary Dolby Digital+ Stereo" ;;
+            6) new_title="Commentary Dolby Digital+ 5.1" ;;
+            8) new_title="Commentary Dolby Digital+ 7.1" ;;
+            *) new_title="Commentary Dolby Digital+ ${ch}ch" ;;
+        esac
+    else
+        case "$ch" in
+            1) new_title="Dolby Digital+ Mono" ;;
+            2) new_title="Dolby Digital+ Stereo" ;;
+            6) new_title="Dolby Digital+ 5.1" ;;
+            8) new_title="Dolby Digital+ 7.1" ;;
+            *) new_title="Dolby Digital+ ${ch}ch" ;;
+        esac
+    fi
+
     if [[ "$codec" == "eac3" ]]; then
         codec_args+=("-c:a:$track_num" "copy")
+
+        # Fix incorrect or missing title on existing E-AC3 tracks
+        if [[ "$title" != "$new_title" ]]; then
+            echo "🏷️  Track $track_num title -> \"$new_title\""
+            codec_args+=("-metadata:s:a:$track_num" "title=$new_title")
+            metadata_changed=1
+        fi
     else
         echo "🎧 Track $track_num has $ch channels — converting to E-AC3 at ${target_bitrate}."
         codec_args+=(
             "-c:a:$track_num" "eac3"
             "-b:a:$track_num" "$target_bitrate"
+            "-metadata:s:a:$track_num" "title=$new_title"
         )
         # Explicitly set layout for 5.1 or 7.1
         if [ "$ch" -eq 8 ]; then
